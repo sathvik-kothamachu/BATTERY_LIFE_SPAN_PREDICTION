@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battery Health Prediction System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --dark-color: #2c3e50;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            padding-bottom: 2rem;
+        }
+        
+        .navbar {
+            background-color: var(--primary-color);
+        }
+        
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+            margin-bottom: 1.5rem;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .metric-card {
+            text-align: center;
+            padding: 1.5rem;
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--secondary-color);
+        }
+        
+        .metric-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        
+        .battery-health {
+            position: relative;
+            height: 40px;
+            background-color: #e9ecef;
+            border-radius: 20px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .health-bar {
+            height: 100%;
+            border-radius: 20px;
+            transition: width 0.5s ease;
+        }
+        
+        .health-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+        
+        .badge-health {
+            background-color: #28a745;
+            color: white;
+            padding: 0.35em 0.65em;
+            border-radius: 0.25rem;
+        }
+        
+        .badge-warning {
+            background-color: #ffc107;
+            color: black;
+            padding: 0.35em 0.65em;
+            border-radius: 0.25rem;
+        }
+        
+        .badge-danger {
+            background-color: #dc3545;
+            color: white;
+            padding: 0.35em 0.65em;
+            border-radius: 0.25rem;
+        }
+        
+        .form-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .feature-input {
+            margin-bottom: 1rem;
+        }
+        
+        .result-container {
+            display: none;
+            margin-top: 2rem;
+        }
+        
+        .input-group-text {
+            background-color: var(--light-color);
+            font-weight: 500;
+        }
+        
+        .feature-description {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+        }
+        
+        .rul-classification {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            background-color: #f8f9fa;
+            border-left: 4px solid var(--secondary-color);
+        }
+        
+        .rul-short {
+            border-left-color: var(--accent-color);
+            background-color: #fff5f5;
+        }
+        
+        .rul-long {
+            border-left-color: var(--secondary-color);
+            background-color: #f0f9ff;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-battery-charging"></i> Battery Health Prediction System
+            </a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="form-container">
+                    <h2 class="mb-4">Enter Battery Features</h2>
+                    <p class="text-muted mb-4">Enter the battery parameters to get predictions about battery health and remaining useful life.</p>
+                    
+                    <form id="batteryForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="feature-input">
+                                    <label for="cycle" class="form-label">Cycle Count</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="cycle" min="1" max="250" value="114" step="1">
+                                        <span class="input-group-text">cycles</span>
+                                    </div>
+                                    <div class="feature-description">Number of charge/discharge cycles the battery has undergone</div>
+                                </div>
+                                
+                                <div class="feature-input">
+                                    <label for="chI" class="form-label">Charging Current (chI)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="chI" min="1.0" max="1.8" step="0.01" value="1.40">
+                                        <span class="input-group-text">A</span>
+                                    </div>
+                                    <div class="feature-description">Current during charging phase (1.0-1.8 A)</div>
+                                </div>
+                                
+                                <div class="feature-input">
+                                    <label for="chV" class="form-label">Charging Voltage (chV)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="chV" min="4.0" max="4.4" step="0.01" value="4.20">
+                                        <span class="input-group-text">V</span>
+                                    </div>
+                                    <div class="feature-description">Voltage during charging phase (4.0-4.4 V)</div>
+                                </div>
+                                
+                                <div class="feature-input">
+                                    <label for="chT" class="form-label">Charging Temperature (chT)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="chT" min="21" max="31" step="0.1" value="26.9">
+                                        <span class="input-group-text">°C</span>
+                                    </div>
+                                    <div class="feature-description">Temperature during charging (21-31 °C)</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="feature-input">
+                                    <label for="disI" class="form-label">Discharging Current (disI)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="disI" min="1.7" max="2.5" step="0.01" value="2.01">
+                                        <span class="input-group-text">A</span>
+                                    </div>
+                                    <div class="feature-description">Current during discharging phase (1.7-2.5 A)</div>
+                                </div>
+                                
+                                <div class="feature-input">
+                                    <label for="disV" class="form-label">Discharging Voltage (disV)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="disV" min="2.5" max="4.4" step="0.01" value="3.50">
+                                        <span class="input-group-text">V</span>
+                                    </div>
+                                    <div class="feature-description">Voltage during discharging phase (2.5-4.4 V)</div>
+                                </div>
+                                
+                                <div class="feature-input">
+                                    <label for="disT" class="form-label">Discharging Temperature (disT)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="disT" min="26" max="39" step="0.1" value="33.1">
+                                        <span class="input-group-text">°C</span>
+                                    </div>
+                                    <div class="feature-description">Temperature during discharging (26-39 °C)</div>
+                                </div>
+                                
+                                <div class="feature-input">
+                                    <label for="BCt" class="form-label">Battery Capacity (BCt)</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="BCt" min="0.75" max="2.0" step="0.01" value="1.43">
+                                        <span class="input-group-text">Ah</span>
+                                    </div>
+                                    <div class="feature-description">Current capacity of the battery (0.75-2.0 Ah)</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center mt-4">
+                            <button type="button" class="btn btn-primary btn-lg" id="predictBtn">
+                                Predict Battery Health
+                            </button>
+                            <button type="reset" class="btn btn-outline-secondary btn-lg ms-2">
+                                Reset Values
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="result-container" id="resultContainer">
+                        <hr>
+                        <h3 class="mb-4">Prediction Results</h3>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3">
+                                <div class="card metric-card">
+                                    <div class="metric-value" id="sohValue">71.4%</div>
+                                    <div class="metric-label">State of Health (SOH)</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="card metric-card">
+                                    <div class="metric-value" id="rulValue">113</div>
+                                    <div class="metric-label">Remaining Useful Life (cycles)</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h5>Battery Health Status</h5>
+                            <div class="battery-health">
+                                <div class="health-bar" id="healthBar" style="width: 71.4%"></div>
+                                <div class="health-text" id="healthText">71.4% - Moderate</div>
+                            </div>
+                            <div class="text-center mt-2">
+                                <span class="badge rounded-pill" id="healthBadge">Moderate</span>
+                            </div>
+                        </div>
+                        
+                        <!-- RUL Classification Section -->
+                        <div class="rul-classification" id="rulClassification">
+                            <h5>RUL Classification</h5>
+                            <div class="d-flex align-items-center mt-2">
+                                <span class="fw-bold me-2">Predicted RUL Class:</span>
+                                <span id="rulClassValue">1</span>
+                            </div>
+                            <p class="mt-2 mb-0" id="rulClassText">This battery is predicted to have a SHORTER remaining life.</p>
+                        </div>
+                        
+                        <div class="alert alert-info mt-3">
+                            <h5>Interpretation</h5>
+                            <p id="interpretationText">Your battery is in moderate condition. It has gone through significant usage but still has considerable life remaining. Consider monitoring it more frequently.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="card-title mb-0">State of Health (SOH) Trend</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="sohChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="card-title mb-0">Remaining Useful Life (RUL)</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="rulChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="card-title mb-0">Feature Importance</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="importanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Predict button handler
+        document.getElementById('predictBtn').addEventListener('click', function() {
+            // Get all feature values
+            const features = {
+                cycle: parseFloat(document.getElementById('cycle').value),
+                chI: parseFloat(document.getElementById('chI').value),
+                chV: parseFloat(document.getElementById('chV').value),
+                chT: parseFloat(document.getElementById('chT').value),
+                disI: parseFloat(document.getElementById('disI').value),
+                disV: parseFloat(document.getElementById('disV').value),
+                disT: parseFloat(document.getElementById('disT').value),
+                BCt: parseFloat(document.getElementById('BCt').value)
+            };
+            
+            // Calculate predictions (simplified for demo)
+            const soh = calculateSOH(features);
+            const rul = calculateRUL(features);
+            const rulClass = predictRULClass(features);
+            
+            // Update UI with predictions
+            document.getElementById('sohValue').textContent = soh.toFixed(1) + '%';
+            document.getElementById('rulValue').textContent = Math.round(rul);
+            
+            // Update health bar and status
+            const healthBar = document.getElementById('healthBar');
+            healthBar.style.width = soh + '%';
+            
+            // Set color based on SOH
+            if (soh >= 80) {
+                healthBar.className = 'health-bar bg-success';
+                document.getElementById('healthBadge').className = 'badge rounded-pill badge-health';
+                document.getElementById('healthBadge').textContent = 'Healthy';
+                document.getElementById('healthText').textContent = soh.toFixed(1) + '% - Healthy';
+                document.getElementById('interpretationText').textContent = 'Your battery is in excellent condition. It has plenty of life remaining and is performing optimally.';
+            } else if (soh >= 60) {
+                healthBar.className = 'health-bar bg-warning';
+                document.getElementById('healthBadge').className = 'badge rounded-pill badge-warning';
+                document.getElementById('healthBadge').textContent = 'Moderate';
+                document.getElementById('healthText').textContent = soh.toFixed(1) + '% - Moderate';
+                document.getElementById('interpretationText').textContent = 'Your battery is in moderate condition. It has gone through significant usage but still has considerable life remaining. Consider monitoring it more frequently.';
+            } else {
+                healthBar.className = 'health-bar bg-danger';
+                document.getElementById('healthBadge').className = 'badge rounded-pill badge-danger';
+                document.getElementById('healthBadge').textContent = 'Critical';
+                document.getElementById('healthText').textContent = soh.toFixed(1) + '% - Critical';
+                document.getElementById('interpretationText').textContent = 'Your battery is in critical condition. It has significantly degraded and may need replacement soon.';
+            }
+            
+            // Update RUL classification
+            const rulClassification = document.getElementById('rulClassification');
+            document.getElementById('rulClassValue').textContent = rulClass;
+            
+            if (rulClass === 1) {
+                document.getElementById('rulClassText').textContent = 'This battery is predicted to have a SHORTER remaining life.';
+                rulClassification.className = 'rul-classification rul-short';
+            } else {
+                document.getElementById('rulClassText').textContent = 'This battery is predicted to have a LONGER remaining life.';
+                rulClassification.className = 'rul-classification rul-long';
+            }
+            
+            // Show results
+            document.getElementById('resultContainer').style.display = 'block';
+            
+            // Update charts with new data
+            updateCharts(features, soh, rul);
+        });
+
+        // Simplified prediction functions (for demo purposes)
+        function calculateSOH(features) {
+            // This is a simplified calculation for demo purposes
+            let soh = 100;
+            
+            // Reduce SOH based on cycle count
+            soh -= (features.cycle / 250) * 30;
+            
+            // Adjust based on temperature (higher temps reduce health faster)
+            soh -= (Math.max(features.chT, features.disT) - 25) * 0.5;
+            
+            // Adjust based on capacity
+            soh -= (2.0 - features.BCt) * 15;
+            
+            // Ensure SOH is between 0 and 100
+            return Math.max(0, Math.min(100, soh));
+        }
+
+        function calculateRUL(features) {
+            // This is a simplified calculation for demo purposes
+            let baseRUL = 250 - features.cycle;
+            
+            // Adjust based on health factors
+            const soh = calculateSOH(features);
+            const healthFactor = soh / 100;
+            
+            return Math.max(0, Math.round(baseRUL * healthFactor));
+        }
+        
+        function predictRULClass(features) {
+            // This is a simplified classification for demo purposes
+            // In a real application, this would use a trained ML model
+            const soh = calculateSOH(features);
+            
+            // Class 1: Shorter remaining life (SOH < 70% or high cycle count)
+            if (soh < 70 || features.cycle > 180) {
+                return 1;
+            }
+            
+            // Class 0: Longer remaining life
+            return 0;
+        }
+
+        // Initialize charts
+        const sohCtx = document.getElementById('sohChart').getContext('2d');
+        const sohChart = new Chart(sohCtx, {
+            type: 'line',
+            data: {
+                labels: ['Cycle 1', 'Cycle 50', 'Cycle 100', 'Cycle 150', 'Cycle 200', 'Cycle 250'],
+                datasets: [{
+                    label: 'State of Health (%)',
+                    data: [100, 85, 71, 58, 45, 37],
+                    borderColor: '#3498db',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        min: 0,
+                        max: 100
+                    }
+                }
+            }
+        });
+
+        const rulCtx = document.getElementById('rulChart').getContext('2d');
+        const rulChart = new Chart(rulCtx, {
+            type: 'line',
+            data: {
+                labels: ['Cycle 1', 'Cycle 50', 'Cycle 100', 'Cycle 150', 'Cycle 200', 'Cycle 250'],
+                datasets: [{
+                    label: 'Remaining Useful Life (cycles)',
+                    data: [250, 200, 150, 100, 50, 0],
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        const importanceCtx = document.getElementById('importanceChart').getContext('2d');
+        const importanceChart = new Chart(importanceCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Cycle Count', 'Capacity', 'Temp Diff', 'Voltage', 'Current'],
+                datasets: [{
+                    label: 'Feature Importance',
+                    data: [35, 25, 20, 15, 5],
+                    backgroundColor: [
+                        'rgba(52, 152, 219, 0.7)',
+                        'rgba(46, 204, 113, 0.7)',
+                        'rgba(155, 89, 182, 0.7)',
+                        'rgba(241, 196, 15, 0.7)',
+                        'rgba(230, 126, 34, 0.7)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Importance (%)'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Update charts with new data
+        function updateCharts(features, soh, rul) {
+            // Update SOH chart with new data point
+            const cycleIndex = Math.min(5, Math.floor(features.cycle / 50));
+            sohChart.data.datasets[0].data[cycleIndex] = soh;
+            sohChart.update();
+            
+            // Update RUL chart with new data point
+            rulChart.data.datasets[0].data[cycleIndex] = rul;
+            rulChart.update();
+        }
+    </script>
+</body>
+</html>
